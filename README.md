@@ -26,7 +26,7 @@ As expected, it relies on no external non-Nim dependencies.
 ybus' core (wire protocol reader and writer) is mostly written as pure, side-effect-free functions. The `unix_sync` client, as the name suggests, is a synchronous D-Bus client that uses UNIX sockets.
 
 Here is a basic example which connects to the system bus and queries the version of systemd running on the machine.
-```
+```nim
 import std/options
 import pkg/ybus/client/unix_sync
 
