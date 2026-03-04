@@ -115,7 +115,6 @@ proc eatAllNoise(client: BusClient, serial: uint32): Option[Message] =
   while true:
     let incomingOpt = receive(client)
     if !incomingOpt:
-      debugecho "terminate"
       return none(Message)
 
     let incoming = &incomingOpt
