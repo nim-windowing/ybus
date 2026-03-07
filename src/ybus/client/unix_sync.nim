@@ -99,12 +99,11 @@ proc receive*(client: BusClient): Option[Message] =
     discard recv(client.sock, int(bodyPadding))
 
   var pos: int
-  let v = parseVariant(recv(client.sock, int(msg.size)), pos, &signature)
+  let v = parseVariants(recv(client.sock, int(msg.size)), pos, &signature)
   if !v:
     return none(Message)
 
-  msg.body = @[&v] # FIXME: Proper seq[Variant] parsing!
-
+  msg.body = &v
   # Finally, return the fully parsed response.
   some(ensureMove(msg))
 
