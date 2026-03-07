@@ -25,9 +25,12 @@ proc getCapabilities*(client: unix_sync.BusClient): Option[seq[string]] =
       retvals &= elem.str
     return some(ensureMove(retvals))
 
-proc getServerInformation*(client: unix_sync.BusClient): Option[string] =
+proc getServerInformation*(client: unix_sync.BusClient): Option[seq[string]] =
   let r: Option[Message] = client.call(path = "/org/freedesktop/Notifications", iface = "org.freedesktop.Notifications", destination = "org.freedesktop.Notifications", member = "GetServerInformation")
   if r.isSome:
     let rv = r.get()
     
-    return some(rv.body[0].str)
+    var retvals = newSeqOfCap[string](rv.body.len)
+    for elem in rv.body:
+      retvals &= elem.str
+    return some(ensureMove(retvals))

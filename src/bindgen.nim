@@ -8,7 +8,7 @@
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import std/[options, os, parseopt, parsexml, streams, strutils]
 import pkg/ybus/client/unix_sync,
-       pkg/[pretty, smelly, shakar]
+       pkg/[pretty, shakar]
 
 type
   Mode = enum
@@ -34,8 +34,7 @@ func toPrimitiveType(typ: string): string =
     if not typ.contains('{'):
       # array
       var buff = "seq["
-      for c in typ[1 ..< typ.len]:
-        buff &= toPrimitiveType($c)
+      buff &= toPrimitiveType($typ[1])
       buff &= ']'
       return ensureMove(buff)
     else:
@@ -105,7 +104,8 @@ proc generateMethod(parser: var XmlParser, iface: string, buffer: var string) =
       if parser.elementName == "arg":
         let arg = generateArgument(parser, buffer)
         if *arg.ret:
-          if !retval: retval = arg.ret
+          retval.applyThis:
+            this &= &arg.ret
         else:
           arguments &= (name: arg.argName, typ: arg.argTyp)
     of xmlElementEnd:
@@ -153,11 +153,11 @@ proc generateMethod(parser: var XmlParser, iface: string, buffer: var string) =
       if not rtyp.contains('{'):
         # array
         let innerType = toPrimitiveType(rtyp[1 ..< rtyp.len])
-        buffer &= "var retvals = newSeqOfCap[" & innerType & "](rv.body.len)\n    "
+        buffer &= "var retvals = newSeqOfCap[" & innerType.multiReplace({"seq[": "", "]": ""}) & "](rv.body.len)\n    "
         buffer &= "for elem in rv.body:\n      "
         buffer &= "retvals &= elem"
-
-        if innerType == "string":
+        
+        if rtyp[1] == 's':
           buffer &= ".str"
         else: discard # TODO: Implement more types
 
