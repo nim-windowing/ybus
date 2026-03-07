@@ -3,9 +3,9 @@ name = "ybus"
 description = "Pure-Nim DBus implementation"
 version = "0.1.0"
 license = "BSD3"
-kind = "Library"
+kind = "Hybrid"
 backend = "C"
-binaries = []
+binaries = ["bindgen"]
 
 [toolchain]
 version = "2.2.0"

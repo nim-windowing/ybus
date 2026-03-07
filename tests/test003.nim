@@ -1,5 +1,5 @@
 ## testcase to start supporting more complex variant encodings
-
+import std/options
 import pkg/ybus/client/unix_sync
 import pkg/pretty
 
@@ -9,13 +9,13 @@ client.connect()
 debugEcho "serial: " & $client.serial
 debugEcho "unique name: " & client.uniqueName
 
-let r0 = client.call(
+let r0 = get client.call(
   path = "/org/freedesktop/Notifications",
-  iface = "org.freedesktop.Notifications",
+  iface = "org.freedesktop.DBus.Introspectable",
   destination = "org.freedesktop.Notifications",
-  member = "GetServerInformation"
+  member = "Introspect"
 )
-print r0
+writeFile("notifications.xml", r0.body[0].str)
 
 let r = client.call(
   path = "/org/freedesktop/Notifications",
