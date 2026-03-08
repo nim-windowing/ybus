@@ -21,7 +21,7 @@ proc getCapabilities*(client: unix_sync.BusClient): Option[seq[string]] =
     let rv = r.get()
     
     var retvals = newSeqOfCap[string](rv.body.len)
-    for elem in rv.body:
+    for elem in rv.body[0].elements:
       retvals &= elem.str
     return some(ensureMove(retvals))
 
