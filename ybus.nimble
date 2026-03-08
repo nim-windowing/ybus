@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.0"
+version       = "0.1.1"
 author        = "xTrayambak"
 description   = "Pure-Nim DBus implementation"
 license       = "BSD-3-Clause"
