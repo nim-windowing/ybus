@@ -79,22 +79,78 @@ func emitHeaders(headers: seq[types.Header], buffer: var string) {.inline.} =
     buffer.align(8) # Every header needs to start at an 8-byte boundary
     emitHeader(header, buffer)
 
+func computeAlignment(variant: Variant): int {.inline.} =
+  case variant.kind
+  of VariantKind.Uint8, VariantKind.Variant:
+    return 1
+  of VariantKind.Int16, VariantKind.Uint16:
+    return 2
+  of VariantKind.Int32, VariantKind.Uint32, VariantKind.Boolean, VariantKind.UnixFd,
+      VariantKind.String, VariantKind.ObjectPath, VariantKind.TypeSignature:
+    return 4
+  of VariantKind.Int64, VariantKind.Uint64, VariantKind.Double, VariantKind.Struct,
+      VariantKind.DictEntry:
+    return 8
+  of VariantKind.Array:
+    if variant.elements.len < 1:
+      # If the array is empty, we needn't add any padding.
+      return 0
+
+    return computeAlignment(variant.elements[0])
+  else:
+    discard
+
+func emitVariant(variant: Variant, buffer: var string) =
+  case variant.kind
+  of VariantKind.String, VariantKind.ObjectPath:
+    buffer.align(4)
+
+    let currentPos = buffer.len
+
+    let length = uint32(variant.str.len)
+    buffer.alloc(4)
+    buffer.writeUint32(currentPos, length)
+
+    buffer &= variant.str
+    buffer &= '\0'
+  of VariantKind.Uint32:
+    buffer.align(4)
+
+    let vpos = buffer.len
+    buffer.alloc(4)
+    buffer.writeUint32(vpos, variant.u32)
+  of VariantKind.Int32:
+    buffer.align(4)
+
+    let vpos = buffer.len
+    buffer.alloc(4)
+    buffer.writeInt32(vpos, variant.i32)
+  of VariantKind.Array:
+    buffer.align(4)
+
+    let lengthPos = buffer.len
+    buffer.alloc(4)
+
+    let internalAlign = computeAlignment(variant)
+    if internalAlign < 1:
+      # We probably have nothing to store.
+      buffer.writeUint32(lengthPos, 0)
+      return
+    
+    buffer.align(internalAlign)
+    let dataStart = buffer.len
+
+    for elem in variant.elements:
+      emitVariant(elem, buffer)
+
+    let dataSize = uint32(buffer.len - dataStart)
+    buffer.writeUint32(lengthPos, dataSize)
+  else:
+    assert off, $variant.kind
+
 func emitBody(body: seq[Variant], buffer: var string) {.inline.} =
   for variant in body:
-    case variant.kind
-    of VariantKind.String, VariantKind.ObjectPath:
-      buffer.align(4)
-
-      let currentPos = buffer.len
-
-      let length = uint32(variant.str.len)
-      buffer.alloc(4)
-      buffer.writeUint32(currentPos, length)
-
-      buffer &= variant.str
-      buffer &= '\0'
-    else:
-      assert off, $variant.kind
+    emitVariant(variant, buffer)
 
 func emit*(msg: types.Message, capacity: uint = 256'u): string =
   var buffer = newStringOfCap(capacity)
