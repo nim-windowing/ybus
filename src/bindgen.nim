@@ -154,9 +154,15 @@ proc generateMethod(parser: var XmlParser, iface: string, buffer: var string) =
         # array
         let innerType = toPrimitiveType(rtyp[1 ..< rtyp.len])
         buffer &= "var retvals = newSeqOfCap[" & innerType.multiReplace({"seq[": "", "]": ""}) & "](rv.body.len)\n    "
-        buffer &= "for elem in rv.body:\n      "
-        buffer &= "retvals &= elem"
         
+        if rtyp.len != 2:
+          # HACK: This is stupid.
+          buffer &= "for elem in rv.body:\n      "
+          buffer &= "retvals &= elem"
+        else:
+          buffer &= "for elem in rv.body[0].elements:\n      "
+          buffer &= "retvals &= elem"
+
         if rtyp[1] == 's':
           buffer &= ".str"
         else: discard # TODO: Implement more types
@@ -224,6 +230,8 @@ proc introspectAndGenerate(path, target: string) =
   client.connect()
 
   let resp = &client.call(path = path, iface = "org.freedesktop.DBus.Introspectable", destination = target, member = "Introspect")
+  assert(resp.kind == MessageKind.MethodReturn, resp.body[0].str)
+
   stdout.write(generateBindings(resp.body[0].str, target))
 
 proc main() {.inline.} =
