@@ -9,11 +9,12 @@ As expected, it relies on no external non-Nim dependencies.
 - [X] Basic sync client with handshake
 - [X] Call methods on the bus
 - [ ] Programmer-friendly API to create interfaces and services on the bus
-- [ ] **Writer**: Support for emitting all remaining header types
+- [X] **Writer**: Support for emitting all remaining header types
 - [ ] **Writer**: Support for emitting variants besides strings and object paths
 - [ ] **Reader**: Support for parsing some remaining header types
 - [ ] **Reader**: Support for parsing all remaining variant types
 - [X] Tool to convert protocol XML files to Nim wrappers
+- [ ] UNIX file descriptors support (for sharing of a FD between services)
 - [ ] `asyncdispatch` and `chronos` based asynchronous clients
 - [ ] Benchmarking ybus against implementations in other languages (`zbus` for Rust, `godbus` for Go, etc.)
 - [ ] More error-proofing (Possibly fuzzing the reader and variant parser? They don't use any pointer math so this will only catch logic bugs and OOB reads that'd cause defects)
