@@ -141,8 +141,17 @@ func parseHeader*(
     i += size + 1
 
     return ok((hdr: Header(kind: HeaderKind.Member, member: member), consumed: i))
-  else:
-    assert off, $kind
+  of HeaderKind.Invalid:
+    return err("Invalid header kind consumed")
+  of HeaderKind.UnixFds:
+    i += 3 # skip \x01u\0 
+
+    align(pos = i, cap = i, boundary = 4)
+
+    let fdsCount = buffer.readUint32(i)
+    i += 4
+
+    return ok((hdr: Header(kind: HeaderKind.UnixFds, fdsCount: fdsCount), consumed: i))
 
 func parseHeaders*(buffer: string): Result[seq[types.Header], string] =
   var i = 0
@@ -226,6 +235,19 @@ func eatCompleteType*(signature: var string): Option[string] =
   else:
     none(string)
 
+func computeScalarAlignment*(sigByte: char): int {.raises: [ValueError].} =
+  ## Compute the alignment of a type with either pre-determined
+  ## elements (like s -> collection of bytes) or scalar types.
+  ##
+  ## Raises `ValueError` if a non-acceptable type is passed.
+  case sigByte
+  of 'y', 'v': 1
+  of 'n', 'q': 2
+  of 'i', 'u', 'b', 'h', 's', 'o', 'g': 4
+  of 'x', 't', 'd': 8
+  else:
+    raise newException(ValueError, "Cannot compute alignment for type: " & sigByte)
+
 func parseVariant*(
     buffer: string, pos: var int, signature: string
 ): Result[Variant, string] =
@@ -272,6 +294,27 @@ func parseVariant*(
       return err("Failed to parse inner variant: " & variant.error())
 
     return ok(Variant(kind: VariantKind.Variant, variant: &variant))
+  of 'a':
+    align(pos = pos, cap = pos, boundary = 4)
+
+    let arraySize = buffer.readUint32(pos)
+    pos += 4
+
+    let elemSigFirstByte = signature[0]
+    let elemAlign = computeScalarAlignment(elemSigFirstByte)
+    align(pos = pos, cap = pos, elemAlign)
+
+    let startPos = pos
+    var elements: seq[Variant] # OPTIMIZE: Preallocate
+    
+    while uint32(pos - startPos) < arraySize:
+      let elem = parseVariant(buffer, pos, signature)
+      if !elem:
+        return elem
+
+      elements &= &elem
+
+    return ok(Variant(kind: VariantKind.Array, elements: ensureMove(elements)))
   else:
     assert off, $sigFirstByte
 
