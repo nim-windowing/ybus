@@ -16,7 +16,7 @@ As expected, it relies on no external non-Nim dependencies.
 - [X] Tool to convert protocol XML files to Nim wrappers
 - [ ] UNIX file descriptors support (for sharing of a FD between services)
 - [ ] `asyncdispatch` and `chronos` based asynchronous clients
-- [ ] Benchmarking ybus against implementations in other languages (`zbus` for Rust, `godbus` for Go, etc.)
+- [ ] Benchmarking ybus against implementations in other languages (`zbus` for Rust, `godbus` for Go, `tinydbus`, etc.)
 - [ ] More error-proofing (Possibly fuzzing the reader and variant parser? They don't use any pointer math so this will only catch logic bugs and OOB reads that'd cause defects)
 
 # distant / low-priority goals

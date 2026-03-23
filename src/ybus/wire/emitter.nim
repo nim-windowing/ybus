@@ -136,7 +136,7 @@ func emitVariant(variant: Variant, buffer: var string) =
       # We probably have nothing to store.
       buffer.writeUint32(lengthPos, 0)
       return
-    
+
     buffer.align(internalAlign)
     let dataStart = buffer.len
 
