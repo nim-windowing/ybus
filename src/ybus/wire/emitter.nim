@@ -71,6 +71,12 @@ func emitHeader(header: types.Header, buffer: var string) =
     buffer &= cast[char](header.signature.len)
     buffer &= header.signature
     buffer &= '\0'
+  of HeaderKind.ReplySerial:
+    buffer &= "\x01u\0"
+    buffer.align(4)
+
+    let pos = buffer.alloc(4)
+    buffer.writeUint32(pos - 4, header.serial)
   else:
     assert off, $header.kind
 

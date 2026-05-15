@@ -8,7 +8,7 @@ As expected, it relies on no external non-Nim dependencies.
 - [X] Authentication machine
 - [X] Basic sync client with handshake
 - [X] Call methods on the bus
-- [ ] Programmer-friendly API to create interfaces and services on the bus
+- [X] Programmer-friendly API to create interfaces and services on the bus
 - [X] **Writer**: Support for emitting all remaining header types
 - [ ] **Writer**: Support for emitting variants besides strings and object paths
 - [ ] **Reader**: Support for parsing some remaining header types

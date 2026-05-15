@@ -5,13 +5,17 @@
 ##
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
 import std/[net, nativesockets, options, posix]
-import pkg/ybus/wire/[emitter, reader, types], pkg/ybus/[auth, socket]
+import
+  pkg/ybus/wire/[emitter, reader, types],
+  pkg/ybus/[auth, socket],
+  pkg/ybus/client/interfaces/define
 import pkg/shakar
 
 export types
 
 type
   BusError* = object of OSError
+  CannotRegisterName* = object of BusError
 
   BusClientObj = object
     sock: Socket
@@ -50,6 +54,7 @@ func uniqueName*(client: BusClient): lent string =
 
 # End getters
 
+import posix, pretty, flatty/hexprint # eewrwerwerwer
 proc receive*(client: BusClient): Option[Message] =
   ## Receive a response `Message` from the D-Bus daemon.
   ##
@@ -124,8 +129,12 @@ proc eatAllNoise(client: BusClient, serial: uint32): Option[Message] =
     if incoming.kind == MessageKind.Signal:
       client.signals &= incoming
 
+import flatty/hexprint, pretty
 proc send*(
-    client: BusClient, message: Message, serialOverride: bool = false
+    client: BusClient,
+    message: Message,
+    serialOverride: bool = false,
+    performRecvs: bool = true,
 ): Option[Message] =
   ## Serialize a `Message` and send it to the D-Bus daemon.
   ##
@@ -138,11 +147,15 @@ proc send*(
     inc client.serial
     message.serial = client.serial
 
+  print message
   let serialized = emitter.emit(message)
   # debugecho $client.serial & ": " & hexPrint(serialized)
   client.sock.send(serialized)
 
+  debugecho hexprint(serialized)
+
   if message.flags.contains(MessageFlags.NoReplyExpected):
+    debugecho "not expected"
     return none(Message)
 
   eatAllNoise(client, message.serial)
@@ -280,6 +293,40 @@ proc connect*(client: BusClient) {.sideEffect.} =
     )
 
   client.uniqueName = resp.body[0].str
+
+proc register*[T: object](
+    client: BusClient, iface: InterfaceDef[T], nameFlags: set[InterfaceNameFlag] = {}
+): RequestNameResponse =
+  let responseOpt = client.call(
+    path = "/org/freedesktop/DBus",
+    iface = "org.freedesktop.DBus",
+    destination = "org.freedesktop.DBus",
+    member = "RequestName",
+    signature = "su",
+    arguments =
+      @[
+        Variant(kind: VariantKind.String, str: iface.name),
+        Variant(kind: VariantKind.Uint32, u32: cast[uint32](nameFlags)),
+      ],
+  )
+  if !responseOpt:
+    raise
+      newException(CannotRegisterName, "Broker did not respond to RequestName call!")
+
+  let response = &responseOpt
+  if response.kind == MessageKind.Error:
+    raise newException(
+      CannotRegisterName,
+      "Broker responded to RequestName with an error: " & response.body[0].str,
+    )
+
+  if response.body.len < 1:
+    raise newException(
+      CannotRegisterName,
+      "Broker did not respond to RequestName call with expected signature!",
+    )
+
+  cast[RequestNameResponse](response.body[0].u32)
 
 template createDbusSocket(): Socket =
   newSocket(net.AF_UNIX, net.SOCK_STREAM, net.IPPROTO_IP)

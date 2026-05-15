@@ -20,10 +20,10 @@
       "checksum": "49379aaeadb08fbb4e99d1d56e713c390badd71b5f4f073c9493df7ae6bd85e4"
     },
     "pretty": {
-      "version": "0.2.0",
-      "commit": "9e770046c5cdf23d395d6b21c4657345481b1c76",
+      "version": "0.1.0",
+      "commit": "60850f8c595d4f0b9e55f3a99c7c471244a3182a",
       "url": "https://github.com/treeform/pretty",
-      "checksum": "a821a0b10261784a670d280759c2b1736e151e3866a3b700654cbd3e6ced4f20"
+      "checksum": "eb057a196ca250b42d44d984a37f6b6d1d4c77f4dff769e4ec0bc425e35bf1a6"
     }
   }
 }
