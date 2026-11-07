@@ -235,23 +235,20 @@ func eatCompleteType*(signature: var string): Option[string] =
   else:
     none(string)
 
-func computeScalarAlignment*(sigByte: char): int {.raises: [ValueError].} =
+func computeScalarAlignment*(sigByte: char): Option[int] =
   ## Compute the alignment of a type with either pre-determined
   ## elements (like s -> collection of bytes) or scalar types.
-  ##
-  ## Raises `ValueError` if a non-acceptable type is passed.
   case sigByte
   of 'y', 'v':
-    1
+    some(1)
   of 'n', 'q':
-    2
+    some(2)
   of 'i', 'u', 'b', 'h', 's', 'o', 'g':
-    4
+    some(4)
   of 'x', 't', 'd':
-    8
+    some(8)
   else:
-    # TODO: Use `Result` here!!!
-    raise newException(ValueError, "Cannot compute alignment for type: " & sigByte)
+    none(int)
 
 func parseVariant*(
     buffer: string, pos: var int, signature: string
@@ -307,7 +304,11 @@ func parseVariant*(
 
     let elemSigFirstByte = signature[0]
     let elemAlign = computeScalarAlignment(elemSigFirstByte)
-    align(pos = pos, cap = pos, elemAlign)
+    if !elemAlign:
+      return
+        err("Cannot compute membership alignment for type '" & elemSigFirstByte & '\'')
+
+    align(pos = pos, cap = pos, &elemAlign)
 
     let startPos = pos
     var elements: seq[Variant] # OPTIMIZE: Preallocate
