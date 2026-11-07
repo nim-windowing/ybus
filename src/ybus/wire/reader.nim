@@ -174,23 +174,19 @@ func parseHeaders*(buffer: string): Result[seq[types.Header], string] =
 
   ok(ensureMove(headers))
 
-func parseStringVariant(
-    buffer: string, pos: var int
-): Result[Variant, string] =
+func parseStringVariant(buffer: string, pos: var int): Result[Variant, string] =
   align(pos = pos, cap = pos, boundary = 4)
   let size = cast[int64](buffer.readUint32(pos))
   pos += 4
-  
+
   # debugEcho "parseStringVariant(size=" & $size & ", pos=" & $pos & ')'
 
   let str = buffer[pos ..< pos + size]
   pos += size + 1
-  
+
   return ok(Variant(kind: VariantKind.String, str: str))
 
-func parse32BitsVariant*(
-    buffer: string, pos: var int
-): Result[uint32, string] =
+func parse32BitsVariant*(buffer: string, pos: var int): Result[uint32, string] =
   align(pos = pos, cap = pos, boundary = 4)
 
   let data = buffer.readUint32(pos)
@@ -202,11 +198,12 @@ func eatCompleteType*(signature: var string): Option[string] =
   # OPTIMIZE: Avoid all the copying and slicing being done here.
   # Use something like nim-url's `StringView`!
 
-  if signature.len == 0: return none(string)
+  if signature.len == 0:
+    return none(string)
 
   let sigByte1 = signature[0]
   case sigByte1
-  of { 'y', 'b', 'n', 'q', 'i', 'u', 'x', 't', 'd', 's', 'o', 'g', 'v' }:
+  of {'y', 'b', 'n', 'q', 'i', 'u', 'x', 't', 'd', 's', 'o', 'g', 'v'}:
     signature = signature[1 ..< signature.len]
     return some($sigByte1)
   of 'a':
@@ -218,8 +215,10 @@ func eatCompleteType*(signature: var string): Option[string] =
     var i = 1
 
     while cnt > 0 and i < signature.len:
-      if signature[i] == '(': inc cnt
-      elif signature[i] == ')': dec cnt
+      if signature[i] == '(':
+        inc cnt
+      elif signature[i] == ')':
+        dec cnt
       inc i
 
     let res = signature[0 ..< i]
@@ -227,7 +226,8 @@ func eatCompleteType*(signature: var string): Option[string] =
     return some(res)
   of '{':
     var i = 0
-    while i < signature.len and signature[i] != '}': inc i
+    while i < signature.len and signature[i] != '}':
+      inc i
 
     let res = signature[0 ..< i]
     signature = signature[i ..< signature.len]
@@ -241,11 +241,16 @@ func computeScalarAlignment*(sigByte: char): int {.raises: [ValueError].} =
   ##
   ## Raises `ValueError` if a non-acceptable type is passed.
   case sigByte
-  of 'y', 'v': 1
-  of 'n', 'q': 2
-  of 'i', 'u', 'b', 'h', 's', 'o', 'g': 4
-  of 'x', 't', 'd': 8
+  of 'y', 'v':
+    1
+  of 'n', 'q':
+    2
+  of 'i', 'u', 'b', 'h', 's', 'o', 'g':
+    4
+  of 'x', 't', 'd':
+    8
   else:
+    # TODO: Use `Result` here!!!
     raise newException(ValueError, "Cannot compute alignment for type: " & sigByte)
 
 func parseVariant*(
@@ -306,7 +311,7 @@ func parseVariant*(
 
     let startPos = pos
     var elements: seq[Variant] # OPTIMIZE: Preallocate
-    
+
     while uint32(pos - startPos) < arraySize:
       let elem = parseVariant(buffer, pos, signature)
       if !elem:
@@ -315,16 +320,24 @@ func parseVariant*(
       elements &= &elem
 
     return ok(Variant(kind: VariantKind.Array, elements: ensureMove(elements)))
+  of 'y':
+    # Byte
+    let value = buffer.readUint8(pos)
+    inc pos
+
+    return ok(Variant(kind: VariantKind.Uint8, u8: value))
   else:
     assert off, $sigFirstByte
 
-func parseVariants*(buffer: string, pos: var int, signature: string): Result[seq[Variant], string] =
+func parseVariants*(
+    buffer: string, pos: var int, signature: string
+): Result[seq[Variant], string] =
   if buffer.len < 1:
     return err("Cannot parse variants from empty buffer!")
 
   if signature.len < 1:
     return err("Cannot parse variants from empty signature!")
-  
+
   var signature = signature
   var variants: seq[Variant] # OPTIMIZE: Preallocate
   while signature.len > 0:

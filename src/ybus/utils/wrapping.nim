@@ -18,11 +18,12 @@ template wrap*[T](value: T): Variant =
 
     Variant(kind: VariantKind.Array, elements: ensureMove(arr))
   elif T is Table:
+    # TODO: Handle this properly!
     var arr: seq[Variant]
     #for key, value in value:
     #  arr &= Variant(kind: VariantKind.DictEntry, key: wrap(key), value: wrap(value))
 
-    Variant(kind: VariantKind.Array, elements: ensureMove(arr))
+    Variant(kind: VariantKind.Array, elements: move(arr))
   elif T is Variant:
     return value
   else:
