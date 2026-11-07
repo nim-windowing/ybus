@@ -4,15 +4,13 @@
 ## **Note**: This only works on POSIX systems, as expected.
 ##
 ## Copyright (C) 2026 Trayambak Rai (xtrayambak@disroot.org)
-import std/[net, nativesockets, options, posix]
+import std/[net, nativesockets, options, posix, strformat]
 import pkg/ybus/wire/[emitter, reader, types], pkg/ybus/[auth, socket]
-import pkg/shakar
+import pkg/[results, shakar]
 
 export types
 
 type
-  BusError* = object of OSError
-
   BusClientObj = object
     sock: Socket
     socketPath: Option[string]
@@ -158,13 +156,12 @@ proc call*(
       kind: MessageKind.MethodCall,
       flags: {},
       version: 1,
-      headers:
-        @[
-          Header(kind: HeaderKind.Path, path: path),
-          Header(kind: HeaderKind.Interface, iface: iface),
-          Header(kind: HeaderKind.Member, member: member),
-          Header(kind: HeaderKind.Destination, destination: destination),
-        ],
+      headers: @[
+        Header(kind: HeaderKind.Path, path: path),
+        Header(kind: HeaderKind.Interface, iface: iface),
+        Header(kind: HeaderKind.Member, member: member),
+        Header(kind: HeaderKind.Destination, destination: destination),
+      ],
     )
   )
 
@@ -181,14 +178,13 @@ proc call*(
       kind: MessageKind.MethodCall,
       flags: {},
       version: 1,
-      headers:
-        @[
-          Header(kind: HeaderKind.Path, path: path),
-          Header(kind: HeaderKind.Interface, iface: iface),
-          Header(kind: HeaderKind.Member, member: member),
-          Header(kind: HeaderKind.Destination, destination: destination),
-          Header(kind: HeaderKind.Signature, signature: signature),
-        ],
+      headers: @[
+        Header(kind: HeaderKind.Path, path: path),
+        Header(kind: HeaderKind.Interface, iface: iface),
+        Header(kind: HeaderKind.Member, member: member),
+        Header(kind: HeaderKind.Destination, destination: destination),
+        Header(kind: HeaderKind.Signature, signature: signature),
+      ],
       body: arguments,
     )
   )
@@ -201,13 +197,12 @@ proc callNoReply*(client: BusClient, path, iface, destination, member: string) =
       kind: MessageKind.MethodCall,
       flags: {MessageFlags.NoReplyExpected},
       version: 1,
-      headers:
-        @[
-          Header(kind: HeaderKind.Path, path: path),
-          Header(kind: HeaderKind.Interface, iface: iface),
-          Header(kind: HeaderKind.Member, member: member),
-          Header(kind: HeaderKind.Destination, destination: destination),
-        ],
+      headers: @[
+        Header(kind: HeaderKind.Path, path: path),
+        Header(kind: HeaderKind.Interface, iface: iface),
+        Header(kind: HeaderKind.Member, member: member),
+        Header(kind: HeaderKind.Destination, destination: destination),
+      ],
     )
   )
 
@@ -224,24 +219,21 @@ proc callNoReply*(
       kind: MessageKind.MethodCall,
       flags: {MessageFlags.NoReplyExpected},
       version: 1,
-      headers:
-        @[
-          Header(kind: HeaderKind.Path, path: path),
-          Header(kind: HeaderKind.Interface, iface: iface),
-          Header(kind: HeaderKind.Member, member: member),
-          Header(kind: HeaderKind.Destination, destination: destination),
-          Header(kind: HeaderKind.Signature, signature: signature),
-        ],
+      headers: @[
+        Header(kind: HeaderKind.Path, path: path),
+        Header(kind: HeaderKind.Interface, iface: iface),
+        Header(kind: HeaderKind.Member, member: member),
+        Header(kind: HeaderKind.Destination, destination: destination),
+        Header(kind: HeaderKind.Signature, signature: signature),
+      ],
       body: arguments,
     )
   )
 
-proc connect*(client: BusClient) {.sideEffect.} =
+proc connect*(client: BusClient): Result[void, string] {.discardable, sideEffect.} =
   if !client.socketPath:
-    raise newException(
-      BusError,
-      "Cannot find a path to the environment's D-Bus daemon. Is a daemon even running?",
-    )
+    return
+      err("Cannot find a path to the environment's D-Bus daemon. Is one even running?")
 
   when defined(ybusConnectLogDebugInfo):
     debugEcho "Socket path: " & &client.socketPath
@@ -253,7 +245,7 @@ proc connect*(client: BusClient) {.sideEffect.} =
   # Let the auth FSM do its thing.
   client.cookie = performAuth(client.auth, client.uid, client.sock)
   if !client.cookie:
-    raise newException(BusError, "Failed to authenticate into the D-Bus daemon.")
+    return err("Failed to authenticate into the D-Bus daemon.")
 
   # Now, let us register ourselves with the daemon so we can talk to services on the bus.
   # For that, we must use the `Hello` call.
@@ -266,20 +258,17 @@ proc connect*(client: BusClient) {.sideEffect.} =
     member = "Hello",
   )
   if !respOpt:
-    raise newException(
-      BusError,
-      "Failed to register with the D-Bus daemon (Hello), received invalid message?",
-    )
+    return
+      err("Failed to register with the D-Bus daemon (Hello), received invalid message?")
 
   let resp = &respOpt
   if resp.kind == MessageKind.Error:
-    raise newException(
-      BusError,
-      "Failed to register with the D-Bus daemon (Hello), received error response: " &
-        resp.body[0].str,
+    return err(
+      &"Failed to register with the D-Bus daemon (Hello), received error response: {resp.body[0].str}"
     )
 
   client.uniqueName = resp.body[0].str
+  ok()
 
 template createDbusSocket(): Socket =
   newSocket(net.AF_UNIX, net.SOCK_STREAM, net.IPPROTO_IP)
